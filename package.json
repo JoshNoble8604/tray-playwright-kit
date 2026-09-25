@@ -1,0 +1,13 @@
+{
+  "name": "tray-playwright-kit",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "workspaces": ["console", "bot"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "console": "node console/bin/tray-console.mjs",
+    "bot": "npm start -w bot",
+    "check": "for f in console/bin/*.mjs console/src/*.mjs bot/src/*.mjs bot/automations/*.mjs; do node --check \"$f\" || exit 1; done && echo ok"
+  }
+}

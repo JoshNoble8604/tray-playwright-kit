@@ -1,0 +1,72 @@
+/**
+ * A worked example of a REAL automation — the shape most RPA jobs take.
+ *
+ * It is a `.txt` on purpose: the registry only loads `.mjs`, so this sits beside
+ * the real automations as a reference without ever being runnable. Copy it to
+ * `portal-invoice.mjs`, point it at your app, and it is live on the next deploy.
+ *
+ * The four things worth copying from it:
+ *
+ *   1. SECRETS ARE DECLARED, never read from process.env inside run(). The
+ *      runner resolves them before launching a browser, so a missing password
+ *      fails in a sentence instead of as a timeout on a login page.
+ *   2. VERIFY BY OUTCOME, never by the click. Asserting that the invoice number
+ *      on the page matches the one asked for is a different claim from "the
+ *      search box accepted my text", and only the second one is free.
+ *   3. RETURN DATA, not a status. The calling workflow wants the amount and the
+ *      due date; "ok: true" makes it scrape the log.
+ *   4. SAVE EVIDENCE for anything irreversible. A PDF the bot downloaded and a
+ *      screenshot of the confirmation are what let somebody audit the run later.
+ */
+export const meta = {
+  description: "Downloads one invoice from the supplier portal and returns its totals.",
+  secrets: ["PORTAL_USERNAME", "PORTAL_PASSWORD"],
+  timeoutMs: 180_000,
+};
+
+export async function run({ page, args, secrets, log, artifact }) {
+  const invoiceNumber = String(args.invoice_number ?? "").trim();
+  if (!invoiceNumber) throw new Error("args.invoice_number is required");
+
+  log("signing in");
+  await page.goto("https://portal.example.com/login", { waitUntil: "domcontentloaded" });
+  await page.getByLabel("Email").fill(secrets.PORTAL_USERNAME);
+  await page.getByLabel("Password").fill(secrets.PORTAL_PASSWORD);
+  await page.getByRole("button", { name: "Sign in" }).click();
+
+  // Wait for a thing that only exists AFTER a successful sign-in. Waiting for
+  // navigation would also be satisfied by the login page re-rendering with an
+  // error, and the automation would then fail somewhere less obvious.
+  await page.getByRole("heading", { name: "Invoices" }).waitFor();
+
+  log(`searching for ${invoiceNumber}`);
+  await page.getByPlaceholder("Search invoices").fill(invoiceNumber);
+  await page.keyboard.press("Enter");
+
+  const row = page.getByRole("row").filter({ hasText: invoiceNumber }).first();
+  await row.waitFor();
+
+  const total = (await row.getByTestId("total").innerText()).trim();
+  const dueDate = (await row.getByTestId("due-date").innerText()).trim();
+
+  // The outcome check. Without it a portal that silently ignores the filter and
+  // shows the newest invoice would return the WRONG invoice, successfully.
+  const shown = (await row.getByTestId("invoice-number").innerText()).trim();
+  if (shown !== invoiceNumber) {
+    throw new Error(`Asked for invoice ${invoiceNumber} but the row shows ${shown}`);
+  }
+
+  const download = await Promise.all([
+    page.waitForEvent("download"),
+    row.getByRole("link", { name: "PDF" }).click(),
+  ]).then(([d]) => d);
+  artifact(`${invoiceNumber}.pdf`, await download.createReadStream().then(streamToBuffer));
+
+  return { invoice_number: invoiceNumber, total, due_date: dueDate };
+}
+
+async function streamToBuffer(stream) {
+  const chunks = [];
+  for await (const chunk of stream) chunks.push(chunk);
+  return Buffer.concat(chunks);
+}

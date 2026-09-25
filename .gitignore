@@ -1,0 +1,9 @@
+node_modules/
+.env
+artifacts/
+test-results/
+playwright-report/
+tray-console.config.mjs
+*.tmp.mjs
+.DS_Store
+._*

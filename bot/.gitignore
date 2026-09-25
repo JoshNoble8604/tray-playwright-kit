@@ -1,0 +1,22 @@
+node_modules
+
+# Screenshots, videos and downloads from every job, keyed by job id. Evidence of
+# what a bot did to somebody's system — worth keeping on the host, never in git.
+artifacts
+
+# Holds the two webhook URLs, which are the only credential guarding the queue.
+.env
+
+# Playwright's own output, if anyone runs the test runner here.
+test-results
+playwright-report
+
+# Throwaway harnesses. The bot's dependencies resolve from THIS directory, so
+# the way to run one automation by hand is a scratch file dropped in beside the
+# source — five were written and deleted while building this, and one committed
+# by accident would look like a real entry point.
+*.tmp.mjs
+
+# macOS. Was covered by the parent repo's root ignore until this became its own.
+.DS_Store
+._*

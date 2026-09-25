@@ -1,0 +1,15 @@
+{
+  "name": "tray-console-kit",
+  "version": "1.0.0",
+  "description": "Drive Tray's console from a script, for the things that have no API behind them.",
+  "type": "module",
+  "bin": { "tray-console": "bin/tray-console.mjs" },
+  "exports": {
+    ".": "./src/config.mjs",
+    "./browser": "./src/browser.mjs",
+    "./*": "./src/*.mjs"
+  },
+  "files": ["src", "bin", "example.config.mjs", "README.md"],
+  "engines": { "node": ">=20" },
+  "dependencies": { "playwright": "^1.62.1" }
+}
